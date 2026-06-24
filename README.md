@@ -1,153 +1,166 @@
+# A Decentralized Federated WGAN-GP Framework for Anomaly Detection in Industrial Control Systems
 
-# Federated Learning Anomaly Detection for Industrial Control Systems: A GAN-Based Attack Simulation
+**Published in IEEE Access (2026)**  
+📄 [https://ieeexplore.ieee.org/abstract/document/11569888/](https://ieeexplore.ieee.org/abstract/document/11569888/)  
+DOI: `10.1109/ACCESS.2026.3704897`
 
-This repository presents a research project focused on simulating **False Data Injection Attacks (FDIA)** on SCADA systems using **Generative Adversarial Networks (GANs)** and detecting them with deep learning-based anomaly detection models.
-
-> 🔬 Dataset: [Secure Water Treatment (SWaT) Testbed – July 20, 2019](#dataset-overview)
+> Veysel Alevcan · Mohammad Furqan Ali · Yakubu Tsado · Serra Atal · Paulo Correia · Christoforos Ntantogian · Bamidele Adebisi · Luís Miguel Campos
 
 ---
 
-
 ## 📌 Project Overview
 
-- Simulate **multi-dimensional cyberattacks** using WGAN-GP on real SCADA sensor data (24 features).
-- Inject synthetic attacks into normal SCADA data to generate realistic anomaly-rich datasets.
-- Use anomaly detection models like **Autoencoders** and **LSTM-AE** to detect attacks in both centralized and federated setups.
-- Visualize and analyze attack separation using feature distributions, t-SNE projections, and reconstruction error histograms.
+This repository contains the code, trained models, and notebooks associated with the above publication. The work addresses a fundamental challenge in ICS/SCADA security: anomaly detectors trained on a single site's data fail to generalize, while centralizing operational data across sites is infeasible due to privacy and regulatory constraints.
+
+The proposed framework combines **Federated Learning (FL)** with **WGAN-GP generative augmentation** to solve two distinct problems simultaneously:
+- Data heterogeneity across federated clients (non-IID distributions)
+- Severe class imbalance in ICS attack datasets (attack class < 1% on SWaT)
 
 ---
 
 ## 📊 Visualization Summary
 
 <div align="center">
-  <img src="feature value dist normal vs gan.png" alt="GAN vs Normal Visualizations" width="100%" />
+  <img src="feature value dist normal vs gan.png" alt="GAN vs Normal Feature Distributions" width="100%" />
 </div>
 
 **Figure Explanation:**
 
 | Panel | Description |
 |-------|-------------|
-| **Left: Feature Value Distribution** | Comparison of mean feature values per sample between Normal (blue) and GAN-generated attack (red) samples. Clear separation indicates statistical anomaly. |
-| **Center: t-SNE Projection** | Dimensionality reduction highlights clear separation between Normal (blue circles) and Attack (red crosses) samples, suggesting effective attack simulation. |
-| **Right: Reconstruction Error (MSE)** | Histogram of Autoencoder reconstruction errors. A threshold (e.g., 0.28) is used to classify potential anomalies. Most GAN attacks exceed this threshold. |
-
----
-
-## 📁 Dataset Overview
-
-**Source:** SWaT Testbed – Water Treatment ICS/SCADA Testbed  
-**Collection Date:** July 20, 2019  
-**Normal Operation:** 12:35–14:50 (GMT+8)  
-**Attack Window:** 15:08–16:16  
-**Notable Attacks:**
-
-1. **FIT401 spoofing:** Value changed from 0.8 → 0.5 (affects UV401 actuation).
-2. **LIT301 spoofing:** Level changed from 835 → 1024 (forces T301 underflow).
-3. **P601 forced ON:** Fills raw water tank.
-4. **MV201 + P101 simultaneous ON:** May overflow T301.
-5. **MV501 OFF:** Blocks RO tank drainage.
-6. **P301 OFF:** Interrupts ultrafiltration (UF) process.
+| **Left: Feature Value Distribution** | Mean feature values per sample for Normal (blue) vs. WGAN-GP synthetic attack (red) samples. Statistical separation confirms anomaly discriminability. |
+| **Center: t-SNE Projection** | Dimensionality reduction showing clear clustering of Normal (blue circles) vs. Attack (red crosses) samples in latent space. |
+| **Right: Reconstruction Error (MSE)** | Autoencoder reconstruction error histogram. IQR-based threshold separates normal from anomalous samples without manual tuning. |
 
 ---
 
 ## 🧬 Methodology
 
-1. **GAN-Based Simulation (WGAN-GP):**
-   - Input: Normal samples from SWaT dataset.
-   - Output: Synthetic attack samples that mimic FDIA behavior.
+**1. Federated Learning Setup — Three-Client Architecture**
 
-2. **Attack Injection:**
-   - Generated attacks are injected into normal sequences to simulate contaminated sensor streams.
+Each client trains locally without sharing raw data. Only autoencoder weight updates are transmitted to the aggregation server via FedAvg. Generator weights never leave the client.
 
-3. **Anomaly Detection Models:**
-   - **Autoencoder (AE)**
-   - **LSTM-AE**
-   - **Transformer (optional extension)**
+| Client | Training Data Composition |
+|--------|--------------------------|
+| C1 | Real operational data only |
+| C2 | Real + synthetic mixture |
+| C3 | Synthetic data only (WGAN-GP output) |
 
-4. **Federated Learning Setup:**
-   - Clients receive partitioned datasets with local attacks.
-   - Models are trained collaboratively without raw data sharing.
+**2. WGAN-GP Generative Augmentation**
 
----
+Each client trains a WGAN-GP generator on its local process telemetry. The generator learns the statistical and temporal structure of the real data and oversamples the attack minority class for local training only.
 
-## 🧠 Model Evaluation
+- Synthetic data validated with Wasserstein-1 (W₁) distance and Kolmogorov-Smirnov (KS) statistic per feature
+- All synthetic samples validated within physical process boundaries (tanh output layer)
+- Mean W₁ < 0.004, Max W₁ < 0.02 across all features (SWaT and HAI)
 
-- **Reconstruction Loss (MSE):** Used to compute anomaly score per sample.
-- **Detection Thresholding:** Empirically chosen from the validation set (e.g., 0.28).
-- **Performance Metrics:** Precision, Recall, F1, AUC.
+**3. Autoencoder Architecture**
 
----
+```
+Input (d) → Dense(64) → Dense(32) → Dense(64) → Output (d)
+```
+Swish activations · Batch Normalization · Dropout · IQR-based adaptive threshold
 
-## Client | Avg MSE | Anomaly Rate
-* C1 | 0.1378 | 15.87%
-* C2 | 0.1291 | 12.12%
-* C3 | 0.1360 | 14.65%
-* C4 | 0.1322 | 12.12%
-* C5 | 0.1333 | 12.37%
+**4. Anomaly Detection**
 
-## Key Functionalities
-1. Enhanced Autoencoder Architecture
-Deep encoder-decoder using Swish activations, Batch Normalization, and Dropout
-
-Robust to noise and optimized for anomaly detection
-
-2. Federated Client Evaluation
-Simulates 5 SCADA clients using pre-saved datasets
-
-Computes local MSE and determines a global anomaly threshold
-
-3. GAN Attack Analysis
-GAN-simulated cyberattacks are passed through the trained model
-
-Computes reconstruction errors and anomaly detection rate
-
-4. Advanced Visualizations
-- KDE feature comparison
-
-- t-SNE projection of real vs attack samples
-
-- MSE distribution with anomaly threshold
-
-## 📦 Repository Structure 
-# Component | Description
-- main_pipeline() | The orchestrator function of all stages
-- clients_data/*.npy | Normalized federated client datasets
-- global_ae_model.h5 | Federated-trained global Autoencoder model
-- generated_attack_data.csv | GAN-generated cyberattack samples
-- SWaT_dataset_Jul 19 v2.csv | Real-world water treatment plant dataset from iTrust
-- images/feature-value-dist-normal-vs-gan.png | Distribution of GAN vs Normal samples for visualization
-
+- Anomaly score: per-sample reconstruction loss (MSE)
+- Threshold: IQR-based, calibrated automatically per dataset — no manual tuning
+- Metrics: Accuracy, Precision, Recall, F1, AUC-ROC
 
 ---
 
-## 📖 References
+## 📁 Datasets
 
-- SWaT Dataset (iTrust, Singapore University of Technology and Design):  
-  [https://itrust.sutd.edu.sg/itrust-labs_datasets/dataset_info/](https://itrust.sutd.edu.sg/itrust-labs_datasets/dataset_info/)
+Evaluated across four ICS benchmarks spanning water treatment, electric power, and network intrusion domains:
 
-- WGAN-GP: Gulrajani et al., *Improved Training of Wasserstein GANs*  
-  [https://arxiv.org/abs/1704.00028](https://arxiv.org/abs/1704.00028)
+| Dataset | Domain | Features | Attack Ratio |
+|---------|--------|----------|-------------|
+| SWaT | Water treatment (SUTD) | 51 | < 1% |
+| HAI | Electric power HIL testbed | 59 | ~6% |
+| BATADAL | Water distribution network | 43 | ~6% |
+| KDD99 | Network intrusion (cross-domain) | 38 | ~20% |
+
+- SWaT / HAI: [iTrust, SUTD](https://itrust.sutd.edu.sg/itrust-labs_datasets/dataset_info/)
+- BATADAL: [batadal.net](http://www.batadal.net/)
+- KDD99: [UCI KDD Archive](http://kdd.ics.uci.edu/databases/kddcup99/)
 
 ---
 
-## ✨ Future Work
+## 🧠 Key Results
 
-- Integrate more attack types (DDoS, MITM).
-- Extend to **cross-site federated learning** using additional ICS datasets (e.g., BATADAL).
-- Use **VAE-GAN** or **Diffusion Models** for higher realism in attack simulation.
-  
+**Ablation Study — SWaT (most class-imbalanced dataset):**
 
+| Configuration | F1 | Recall |
+|--------------|-----|--------|
+| C0: Best centralized baseline (IF / LOF / OC-SVM) | 0.791 | — |
+| C1: FL + Autoencoder, no WGAN-GP | 0.286 | 0.196 |
+| C2: FL + WGAN-GP (proposed) | **0.794** | **0.775** |
+
+Removing WGAN-GP collapses Recall by **57.9 pp** on SWaT. On HAI and BATADAL, FL drives most of the gain with WGAN-GP adding marginally — consistent with their more balanced class distributions.
+
+**Communication overhead (K=3 clients, T=10 rounds):**
+
+| Dataset | Per-round traffic | Total (10 rounds) |
+|---------|------------------|-------------------|
+| SWaT | 205.6 KB | 2.01 MB |
+| HAI | 278.1 KB | 2.72 MB |
+| BATADAL | 199.5 KB | 1.95 MB |
+| KDD99 | 223.7 KB | 2.18 MB |
+
+Generator weights are never transmitted — only autoencoder updates.
+
+---
+
+## 📦 Repository Contents
+
+| File | Description |
+|------|-------------|
+| `SWaT_2015_Data_FL_Wgan_compare_result_other_ML_model.ipynb` | SWaT FL + WGAN-GP training and evaluation |
+| `BATADAL_Data_FL_Wgan_compare_result_other_ML_model.ipynb` | BATADAL equivalent |
+| `KDD_Data_FL_Wgan_compare_result_other_ML_model.ipynb` | KDD99 equivalent |
+| `SWaT_Attack_Analysis_with_Federated_Learning_and_GANs.ipynb` | Attack analysis and visualization |
+| `SWaT_July2019_FL_Anomaly_Detection_and_GAN_Fake_Injection.ipynb` | SWaT July 2019 session |
+| `federated_learning_for_scada_anomaly_detection.py` | Core FL pipeline |
+| `swat_wgan_generator.h5` / `swat_wgan_discriminator.h5` | Trained SWaT WGAN-GP weights |
+| `hai_wgan_generator.h5` / `hai_wgan_discriminator.h5` | Trained HAI WGAN-GP weights |
+| `kdd_wgan_generator.h5` / `kdd_wgan_discriminator.h5` | Trained KDD99 WGAN-GP weights |
+| `batadal_wgan_generator.h5` | Trained BATADAL WGAN-GP weights |
+| `global_ae_model.h5` / `optimized_fl_anomaly_detector.h5` | Global federated autoencoder models |
+
+---
+
+## 📖 Citation
+
+If you use this code or the trained models, please cite:
+
+```bibtex
+@ARTICLE{11569888,
+  author  = {Alevcan, Veysel and Ali, Mohammad Furqan and Tsado, Yakubu and Atal, Serra and Correia, Paulo and Ntantogian, Christoforos and Adebisi, Bamidele and Campos, Luís Miguel},
+  journal = {IEEE Access},
+  title   = {A Decentralized Federated WGAN-GP Framework for Anomaly Detection in Industrial Control Systems},
+  year    = {2026},
+  pages   = {1-1},
+  doi     = {10.1109/ACCESS.2026.3704897}
+}
+```
+
+---
+
+## 💰 Funding
+
+This work was funded by the European Commission under three Marie Skłodowska-Curie Actions projects:
+- **REMARKABLE** — Grant No. 101086387
+- **RECITALS** — Grant No. 101168490
+- **ANTIDOTE** — Grant No. 101183162
+
+---
 
 ## 🛡️ Disclaimer
 
-This project is for academic research purposes only. The SWaT dataset and generated attacks should not be used for malicious purposes.
+This repository is for academic research purposes only. Datasets and generated models must not be used for malicious purposes.
 
 ---
 
 ## 🤝 Contributing
 
-PRs and collaborations are welcome, especially for federated learning support and real-time monitoring tools.
-
----
-
-
+PRs and collaborations are welcome, particularly for federated learning extensions and additional ICS dataset support.
