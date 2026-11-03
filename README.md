@@ -6,6 +6,8 @@ DOI: `10.1109/ACCESS.2026.3704897`
 
 > Veysel Alevcan · Mohammad Furqan Ali · Yakubu Tsado · Serra Atal · Paulo Correia · Christoforos Ntantogian · Bamidele Adebisi · Luís Miguel Campos
 
+![Federated WGAN-GP across industrial sites](docs/figures/federated_ot_overview.svg)
+
 ---
 
 ## 📌 Project Overview
@@ -21,7 +23,7 @@ The proposed framework combines **Federated Learning (FL)** with **WGAN-GP gener
 ## 📊 Visualization Summary
 
 <div align="center">
-  <img src="feature value dist normal vs gan.png" alt="GAN vs Normal Feature Distributions" width="100%" />
+  <img src="docs/figures/feature_distribution_normal_vs_gan.png" alt="GAN vs Normal Feature Distributions" width="100%" />
 </div>
 
 **Figure Explanation:**
@@ -111,21 +113,44 @@ Generator weights are never transmitted — only autoencoder updates.
 
 ---
 
-## 📦 Repository Contents
+## 📦 Repository Layout
 
-| File | Description |
+```
+.
+├── notebooks/   Training and evaluation notebooks (Google Colab)
+├── src/         Core federated learning pipeline (Python)
+├── models/      Trained models
+│   ├── wgan/    WGAN-GP generators and discriminators per dataset
+│   └── *.h5     Global federated autoencoders
+├── docs/figures Figures used in this README
+└── requirements.txt
+```
+
+| Path | Description |
 |------|-------------|
-| `SWaT_2015_Data_FL_Wgan_compare_result_other_ML_model.ipynb` | SWaT FL + WGAN-GP training and evaluation |
-| `BATADAL_Data_FL_Wgan_compare_result_other_ML_model.ipynb` | BATADAL equivalent |
-| `KDD_Data_FL_Wgan_compare_result_other_ML_model.ipynb` | KDD99 equivalent |
-| `SWaT_Attack_Analysis_with_Federated_Learning_and_GANs.ipynb` | Attack analysis and visualization |
-| `SWaT_July2019_FL_Anomaly_Detection_and_GAN_Fake_Injection.ipynb` | SWaT July 2019 session |
-| `federated_learning_for_scada_anomaly_detection.py` | Core FL pipeline |
-| `swat_wgan_generator.h5` / `swat_wgan_discriminator.h5` | Trained SWaT WGAN-GP weights |
-| `hai_wgan_generator.h5` / `hai_wgan_discriminator.h5` | Trained HAI WGAN-GP weights |
-| `kdd_wgan_generator.h5` / `kdd_wgan_discriminator.h5` | Trained KDD99 WGAN-GP weights |
-| `batadal_wgan_generator.h5` | Trained BATADAL WGAN-GP weights |
-| `global_ae_model.h5` / `optimized_fl_anomaly_detector.h5` | Global federated autoencoder models |
+| `notebooks/SWaT_2015_Data_FL_Wgan_compare_result_other_ML_model.ipynb` | SWaT FL + WGAN-GP training and evaluation |
+| `notebooks/HAI_20_07_data_FL_WGAN_compare_result_other_ML_model.ipynb` | HAI equivalent |
+| `notebooks/BATADAL_Data_FL_Wgan_compare_result_other_ML_model.ipynb` | BATADAL equivalent |
+| `notebooks/KDD_Data_FL_Wgan_compare_result_other_ML_model.ipynb` | KDD99 equivalent |
+| `notebooks/SWaT_Attack_Analysis_with_Federated_Learning_and_GANs.ipynb` | Attack analysis and visualization |
+| `notebooks/SWaT_July2019_FL_Anomaly_Detection_and_GAN_Fake_Injection.ipynb` | SWaT July 2019 session |
+| `src/federated_learning_for_scada_anomaly_detection.py` | Core FL pipeline |
+| `models/wgan/` | WGAN-GP weights: `swat_*`, `hai_*`, `kdd_*` (generator and discriminator), `batadal_wgan_generator.h5` |
+| `models/global_ae_model.h5`, `models/optimized_fl_anomaly_detector.h5` | Global federated autoencoder models |
+
+---
+
+## 🚀 Getting Started
+
+The datasets are not included. Request SWaT and HAI from [iTrust](https://itrust.sutd.edu.sg/itrust-labs_datasets/dataset_info/), and download BATADAL and KDD99 from the links above.
+
+```bash
+pip install -r requirements.txt
+```
+
+1. Open a notebook from `notebooks/` in Google Colab (the notebooks read data from `/content/`, so upload the dataset files there first).
+2. Run the cells to train the three federated clients and compare against the centralized baselines.
+3. To reuse trained weights, load them with Keras, for example `keras.models.load_model("models/wgan/swat_wgan_generator.h5")`.
 
 ---
 
